@@ -2,7 +2,7 @@
 import warnings
 
 import torch
-
+import clip
 from ..builder import DETECTORS, build_backbone, build_head, build_neck
 from .base import BaseDetector
 
@@ -29,7 +29,8 @@ class TwoStageDetector(BaseDetector):
             warnings.warn('DeprecationWarning: pretrained is deprecated, '
                           'please use "init_cfg" instead')
             backbone.pretrained = pretrained
-        self.backbone = build_backbone(backbone)
+        # self.backbone = build_backbone(backbone)
+        self.backbone = self.build_backbone_by_clip()  #lzk: use clip as backbone
 
         if neck is not None:
             self.neck = build_neck(neck)
@@ -61,6 +62,13 @@ class TwoStageDetector(BaseDetector):
     def with_roi_head(self):
         """bool: whether the detector has a RoI head"""
         return hasattr(self, 'roi_head') and self.roi_head is not None
+    
+    def build_backbone_by_clip(self):
+        device = "cuda" if torch.cuda.is_available() else "cpu"  # TODO 从配置中读取设备
+        model, _ = clip.load("RN50", device=device)
+        for para in model.parameters(): # freeze parameters
+            para.requires_grad = False
+        return model.encode_image
 
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck."""

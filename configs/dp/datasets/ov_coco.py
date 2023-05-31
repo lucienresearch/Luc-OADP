@@ -32,13 +32,15 @@ trainer = dict(
                 ),
                 dict(
                     type='Resize',
-                    img_scale=[(1330, 640), (1333, 800)],
+                    # img_scale=[(1330, 640), (1333, 800)],
+                    img_scale=[(1024, 1024)],
                     multiscale_mode='range',
                     keep_ratio=True,
                 ),
                 dict(type='RandomFlip', flip_ratio=0.5),
                 dict(type='Normalize', **norm),
-                dict(type='Pad', size_divisor=32),
+                # dict(type='Pad', size_divisor=32),
+                dict(type='Pad', size=(1024, 1024)),
                 dict(type='DefaultFormatBundle'),
                 dict(
                     type='ToTensor',
