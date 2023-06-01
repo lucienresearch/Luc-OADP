@@ -20,16 +20,16 @@ trainer = dict(
             pipeline=[
                 dict(type='LoadImageFromFile'),
                 dict(type='LoadAnnotations', with_bbox=True),
-                dict(
-                    type='LoadCLIPFeatures',
-                    default=dict(
-                        task_name='train2017',
-                        type='PthAccessLayer',
-                    ),
-                    globals_=dict(data_root=oake_root + 'globals'),
-                    blocks=dict(data_root=oake_root + 'blocks'),
-                    objects=dict(data_root=oake_root + 'objects'),
-                ),
+                # dict(
+                #     type='LoadCLIPFeatures',
+                #     default=dict(
+                #         task_name='train2017',
+                #         type='PthAccessLayer',
+                #     ),
+                #     globals_=dict(data_root=oake_root + 'globals'),
+                #     blocks=dict(data_root=oake_root + 'blocks'),
+                #     objects=dict(data_root=oake_root + 'objects'),
+                # ),
                 dict(
                     type='Resize',
                     # img_scale=[(1330, 640), (1333, 800)],
@@ -42,26 +42,32 @@ trainer = dict(
                 # dict(type='Pad', size_divisor=32),
                 dict(type='Pad', size=(1024, 1024)),
                 dict(type='DefaultFormatBundle'),
-                dict(
-                    type='ToTensor',
-                    keys=['block_bboxes', 'block_labels', 'object_bboxes'],
-                ),
-                dict(
-                    type='ToDataContainer',
-                    fields=[
-                        dict(key='clip_blocks'),
-                        dict(key='block_bboxes'),
-                        dict(key='block_labels'),
-                        dict(key='clip_objects'),
-                        dict(key='object_bboxes'),
-                    ],
-                ),
+                # dict(
+                #     type='ToTensor',
+                #     keys=['block_bboxes', 'block_labels', 'object_bboxes'],
+                # ),
+                # dict(
+                #     type='ToDataContainer',
+                #     fields=[
+                #         dict(key='clip_blocks'),
+                #         dict(key='block_bboxes'),
+                #         dict(key='block_labels'),
+                #         dict(key='clip_objects'),
+                #         dict(key='object_bboxes'),
+                #     ],
+                # ),
+                # dict(
+                #     type='Collect',
+                #     keys=[
+                #         'img', 'gt_bboxes', 'gt_labels', 'clip_global',
+                #         'clip_blocks', 'block_bboxes', 'block_labels',
+                #         'clip_objects', 'object_bboxes'
+                #     ],
+                # ),
                 dict(
                     type='Collect',
                     keys=[
-                        'img', 'gt_bboxes', 'gt_labels', 'clip_global',
-                        'clip_blocks', 'block_bboxes', 'block_labels',
-                        'clip_objects', 'object_bboxes'
+                        'img', 'gt_bboxes', 'gt_labels'
                     ],
                 ),
             ],

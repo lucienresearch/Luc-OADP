@@ -85,21 +85,21 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
         img_metas: list[dict[str, Any]],
         gt_bboxes: list[torch.Tensor],
         gt_labels: list[torch.Tensor],
-        clip_global: torch.Tensor,
-        clip_blocks: list[torch.Tensor],
-        block_bboxes: list[torch.Tensor],
-        block_labels: list[torch.Tensor],
-        clip_objects: list[torch.Tensor],
-        object_bboxes: list[torch.Tensor],
+        # clip_global: torch.Tensor,
+        # clip_blocks: list[torch.Tensor],
+        # block_bboxes: list[torch.Tensor],
+        # block_labels: list[torch.Tensor],
+        # clip_objects: list[torch.Tensor],
+        # object_bboxes: list[torch.Tensor],
         gt_masks: list[BitmapMasks] | None = None,
         **kwargs,
     ) -> dict[str, torch.Tensor]:
         Globals.training = True
         feats = self.extract_feat(img)
-        global_losses = self._global_head.forward_train(
-            feats,
-            labels=gt_labels,
-        )
+        # global_losses = self._global_head.forward_train(
+        #     feats,
+        #     labels=gt_labels,
+        # )
 
         rpn_losses, proposals = self.rpn_head.forward_train(
             feats,
@@ -121,28 +121,28 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
             gt_masks,
             **kwargs,
         )
-        block_losses = self.roi_head.block_forward_train(
-            feats,
-            block_bboxes,
-            block_labels,
-        )
-        self.roi_head.object_forward_train(feats, object_bboxes)
+        # block_losses = self.roi_head.block_forward_train(
+        #     feats,
+        #     block_bboxes,
+        #     block_labels,
+        # )
+        # self.roi_head.object_forward_train(feats, object_bboxes)
 
-        custom_tensors = dict(
-            clip_global=clip_global.float(),
-            clip_blocks=torch.cat(clip_blocks).float(),
-            clip_objects=torch.cat(clip_objects).float(),
-        )
-        distill_losses = self.distiller(custom_tensors)
-        self.distiller.reset()
-        self.distiller.step()
+        # custom_tensors = dict(
+        #     clip_global=clip_global.float(),
+        #     clip_blocks=torch.cat(clip_blocks).float(),
+        #     clip_objects=torch.cat(clip_objects).float(),
+        # )
+        # distill_losses = self.distiller(custom_tensors)
+        # self.distiller.reset()
+        # self.distiller.step()
 
         return {
-            **global_losses,
+            # **global_losses,
             **rpn_losses,
             **roi_losses,
-            **block_losses,
-            **distill_losses,
+            # **block_losses,
+            # **distill_losses,
         }
 
     def simple_test(self, *args, **kwargs):
