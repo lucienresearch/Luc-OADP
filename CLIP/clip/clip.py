@@ -2,15 +2,16 @@ import hashlib
 import os
 import urllib
 import warnings
-from typing import Any, Union, List
+from typing import Any, Iterable, Union, List, overload
 from pkg_resources import packaging
 
+import todd
 import torch
 from PIL import Image
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from tqdm import tqdm
 
-from .model import build_model
+from .model import build_model, CLIP
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 
 try:
@@ -24,7 +25,7 @@ if packaging.version.parse(torch.__version__) < packaging.version.parse("1.7.1")
     warnings.warn("PyTorch version 1.7.1 or higher is recommended")
 
 
-__all__ = ["available_models", "load", "tokenize"]
+__all__ = ["available_models", "load", "load_default", "tokenize", "adaptively_tokenize"]
 _tokenizer = _Tokenizer()
 
 _MODELS = {
@@ -194,6 +195,26 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
     return model, _transform(model.input_resolution.item())
 
 
+@overload
+def load_default() -> tuple[CLIP, None]:
+    ...
+
+
+@overload
+def load_default(adaptive: bool) -> tuple[CLIP, Compose]:
+    ...
+
+
+def load_default(adaptive=None):
+    device = 'cuda' if todd.Store.CUDA else 'cpu'
+    model, preprocess = load('ViT-B/32', device=device, download_root='pretrained/clip')
+    if adaptive is None:
+        return model, None
+    if adaptive:
+        preprocess.transforms = preprocess.transforms[2:]
+    return model, preprocess
+
+
 def tokenize(texts: Union[str, List[str]], context_length: int = 77, truncate: bool = False) -> Union[torch.IntTensor, torch.LongTensor]:
     """
     Returns the tokenized representation of given input string(s)
@@ -234,4 +255,20 @@ def tokenize(texts: Union[str, List[str]], context_length: int = 77, truncate: b
                 raise RuntimeError(f"Input {texts[i]} is too long for context length {context_length}")
         result[i, :len(tokens)] = torch.tensor(tokens)
 
+    return result
+
+
+def adaptively_tokenize(texts: Iterable[str]) -> torch.IntTensor:
+    device = 'cuda' if todd.Store.CUDA else 'cpu'
+    sot = _tokenizer.encoder["<|startoftext|>"]
+    eot = _tokenizer.encoder["<|endoftext|>"]
+    tokens = [[sot] + _tokenizer.encode(text) + [eot] for text in texts]
+    result = torch.zeros(
+        len(tokens),
+        max(map(len, tokens)),
+        dtype=torch.int,
+        device=device,
+    )
+    for i, t in enumerate(tokens):
+        result[i, :len(t)] = torch.tensor(t)
     return result

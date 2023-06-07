@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Tuple, Union
 
+import einops
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -134,7 +135,7 @@ class ModifiedResNet(nn.Module):
             layers.append(Bottleneck(self._inplanes, planes))
 
         return nn.Sequential(*layers)
-    
+
     def forward(self, x):
         def stem(x):
             x = self.relu1(self.bn1(self.conv1(x)))
@@ -152,25 +153,6 @@ class ModifiedResNet(nn.Module):
         # x = self.attnpool(x)
 
         return [x1, x2, x3, x4]
-
-
-    # def forward(self, x):
-    #     def stem(x):
-    #         x = self.relu1(self.bn1(self.conv1(x)))
-    #         x = self.relu2(self.bn2(self.conv2(x)))
-    #         x = self.relu3(self.bn3(self.conv3(x)))
-    #         x = self.avgpool(x)
-    #         return x
-
-    #     x = x.type(self.conv1.weight.dtype)
-    #     x = stem(x)
-    #     x = self.layer1(x)
-    #     x = self.layer2(x)
-    #     x = self.layer3(x)
-    #     x = self.layer4(x)
-    #     x = self.attnpool(x)
-
-    #     return x
 
 
 class LayerNorm(nn.LayerNorm):
@@ -202,8 +184,11 @@ class ResidualAttentionBlock(nn.Module):
         self.attn_mask = attn_mask
 
     def attention(self, x: torch.Tensor):
-        self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
-        return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
+        attn_mask = (
+            None if self.attn_mask is None else
+            self.attn_mask[:x.shape[0], :x.shape[0]].to(x)
+        )
+        return self.attn(x, x, x, need_weights=False, attn_mask=attn_mask)[0]
 
     def forward(self, x: torch.Tensor):
         x = x + self.attention(self.ln_1(x))
@@ -226,12 +211,14 @@ class VisionTransformer(nn.Module):
     def __init__(self, input_resolution: int, patch_size: int, width: int, layers: int, heads: int, output_dim: int):
         super().__init__()
         self.input_resolution = input_resolution
+        self.patch_size = patch_size
         self.output_dim = output_dim
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=width, kernel_size=patch_size, stride=patch_size, bias=False)
 
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
-        self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
+        self.grid = input_resolution // patch_size
+        self.positional_embedding = nn.Parameter(scale * torch.randn(self.grid ** 2 + 1, width))
         self.ln_pre = LayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads)
@@ -241,10 +228,13 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x: torch.Tensor):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
+
+        positional_embedding = self.interpolate_positional_embedding(x.shape[-2:])
+
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-        x = x + self.positional_embedding.to(x.dtype)
+        x = x + positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
@@ -257,6 +247,16 @@ class VisionTransformer(nn.Module):
             x = x @ self.proj
 
         return x
+
+    def interpolate_positional_embedding(self, size: tuple[int, int]) -> torch.Tensor:
+        if size == (self.grid, self.grid):
+            return self.positional_embedding
+        positional_embedding = self.positional_embedding[1:]
+        positional_embedding = einops.rearrange(positional_embedding, '(h w) c -> 1 c h w', h=self.grid, w=self.grid)
+        positional_embedding = F.interpolate(positional_embedding, size=size, mode='bilinear')
+        positional_embedding = einops.rearrange(positional_embedding, '1 c h w -> (h w) c')
+        positional_embedding = torch.cat([self.positional_embedding[[0]], positional_embedding])
+        return positional_embedding
 
 
 class CLIP(nn.Module):
@@ -362,7 +362,7 @@ class CLIP(nn.Module):
     def encode_text(self, text):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
 
-        x = x + self.positional_embedding.type(self.dtype)
+        x = x + self.positional_embedding[:x.shape[1]].type(self.dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
