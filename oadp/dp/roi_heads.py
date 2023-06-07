@@ -15,7 +15,7 @@ from mmdet.models import HEADS, BaseRoIExtractor, StandardRoIHead
 from ..base import Globals
 from ..base.globals_ import Store
 from .bbox_heads import BlockMixin, ObjectMixin
-
+from .classifiers import AttentionPoolClassifier
 
 @HEADS.register_module()
 class ViLDEnsembleRoIHead(StandardRoIHead):
@@ -40,6 +40,8 @@ class ViLDEnsembleRoIHead(StandardRoIHead):
             object_head,
             default_args=bbox_head,
         )
+        
+        self.attnpool_cls = AttentionPoolClassifier()
 
         # :math:`lambda` for base and novel categories are :math:`2 / 3` and
         # :math:`1 / 3`, respectively
@@ -87,7 +89,8 @@ class ViLDEnsembleRoIHead(StandardRoIHead):
         bbox_logits = bbox_results['cls_score']
         bbox_scores = bbox_logits.softmax(-1)**self.lambda_
 
-        object_logits, _ = self._object_head(bbox_results['bbox_feats'])
+        # object_logits, _ = self._object_head(bbox_results['bbox_feats'])
+        object_logits = self.attnpool_cls(bbox_results['bbox_feats'])
         object_logits = cast(torch.Tensor, object_logits)
         object_scores = object_logits.softmax(-1)**(1 - self.lambda_)
 

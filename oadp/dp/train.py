@@ -3,14 +3,14 @@ import pathlib
 from datetime import datetime
 
 # JUST FOR DEBUGGING
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = '1'
-# os.environ['RANK']='0'
-# os.environ['LOCAL_RANK']='0'
-# os.environ['WORLD_SIZE']='1'
-# os.environ['MASTER_ADDR']='localhost'
-# os.environ['MASTER_PORT']='5679'
-# os.environ["TORCH_DISTRIBUTED_DEBUG"] = "DETAIL"  # set to DETAIL for runtime logging.
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ['RANK']='0'
+os.environ['LOCAL_RANK']='0'
+os.environ['WORLD_SIZE']='1'
+os.environ['MASTER_ADDR']='localhost'
+os.environ['MASTER_PORT']='5674'
+os.environ["TORCH_DISTRIBUTED_DEBUG"] = "DETAIL"  # set to DETAIL for runtime logging.
 
 import mmcv
 import mmdet

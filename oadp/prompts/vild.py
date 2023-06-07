@@ -72,5 +72,24 @@ def main() -> None:
     torch.save(state_dict, 'data/prompts/vild.pth')
 
 
+def gen_ml_coco_clip_r50():
+    ml_coco = torch.load('data/prompts/ml_coco.pth')
+    categories = ml_coco['names']
+    model, _ = clip.load("RN50")
+
+    embeddings = []
+    with torch.no_grad():
+        for prompt in tqdm.tqdm(prompts):
+            texts = map(prompt.format, categories)
+            tokens = clip.adaptively_tokenize(texts)
+            embedding = model.encode_text(tokens)
+            embeddings.append(F.normalize(embedding))
+
+    embeddings = sum(embeddings) / len(embeddings),
+    ml_coco['embeddings'] = embeddings[0]
+    torch.save(ml_coco, 'data/prompts/ml_coco_clip_r50.pth')
+
+
 if __name__ == '__main__':
     main()
+    # gen_ml_coco_clip_r50()

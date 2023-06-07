@@ -79,6 +79,22 @@ validator = dict(
         dataset=dict(
             type=dataset_type,
             ann_file=ann_file_prefix + 'val2017.65.min.json',
+            pipeline=[
+                dict(type='LoadImageFromFile'),
+                dict(
+                    type='MultiScaleFlipAug',
+                    img_scale=(1024, 1024),
+                    flip=False,
+                    transforms=[
+                        dict(type='Resize', keep_ratio=True),
+                        # dict(type='RandomFlip'),
+                        dict(type='Normalize', **norm),
+                        dict(type='Pad', size=(1024, 1024)),
+                        dict(type='ImageToTensor', keys=['img']),
+                        dict(type='Collect', keys=['img']),
+                    ],
+                ),
+            ],
         ),
     ),
 )

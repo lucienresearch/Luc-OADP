@@ -17,14 +17,17 @@ model = dict(
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
+        # out_channels=256,
+        out_channels=2048,
         norm_cfg=dict(type='BN', requires_grad=True),
         num_outs=5,
     ),
     rpn_head=dict(
         type='RPNHead',
-        in_channels=256,
-        feat_channels=256,
+        # in_channels=256,
+        # feat_channels=256,
+        in_channels=2048,
+        feat_channels=2048,
         anchor_generator=dict(
             type='AnchorGenerator',
             scales=[8],
@@ -48,12 +51,14 @@ model = dict(
         bbox_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=7, sampling_ratio=0),
-            out_channels=256,
+            # out_channels=256,
+            out_channels=2048,
             featmap_strides=[4, 8, 16, 32],
         ),
         bbox_head=dict(
             type='Shared2FCBBoxHead',
-            in_channels=256,
+            # in_channels=256,
+            in_channels=2048,
             fc_out_channels=1024,
             roi_feat_size=7,
             num_classes=80,

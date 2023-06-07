@@ -14,6 +14,7 @@ from mmdet.models.utils.builder import LINEAR_LAYERS
 
 from ..base import Globals
 from .utils import NormalizedLinear
+from .attnpool import attnpool
 
 
 @LINEAR_LAYERS.register_module()
@@ -43,7 +44,7 @@ class BaseClassifier(todd.Module):
         else:
             raise RuntimeError(str(out_features))
 
-        self._prompts = prompts_
+        self._prompts = prompts_ 
         self.register_buffer('_embeddings', embeddings, persistent=False)
         self._bg_embedding = bg_embedding
         self._linear = NormalizedLinear(in_features, embeddings.shape[1])
@@ -81,6 +82,27 @@ class Classifier(BaseClassifier):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return super().forward(x) * self._scaler - self._bias
+    
+
+
+@LINEAR_LAYERS.register_module()
+class AttentionPoolClassifier(BaseClassifier):
+
+    def __init__(self, *args, **kwargs) -> None:
+        params = {'in_features': 12544, 'out_features': 66, 'prompts': 'data/prompts/ml_coco_clip_r50.pth'}  # Note: in_features 不用管准确数值，只为初始化超类，Linear Layer 在 forward 中未使用
+        super().__init__(*args, **params)
+        self.attnpool = attnpool
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.attnpool(x)
+        y = x @ self.embeddings.T
+        if Globals.training:
+            novel_categories = slice(
+                Globals.categories.num_bases,
+                Globals.categories.num_all,
+            )
+            y[:, novel_categories] = float('-inf')
+        return y
 
 
 class ViLDScaler(TypedDict):

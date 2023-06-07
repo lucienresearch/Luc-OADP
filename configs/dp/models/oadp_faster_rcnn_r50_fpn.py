@@ -12,7 +12,7 @@ model = dict(
         topk=20,
         classifier=dict(
             type='Classifier',
-            prompts='data/prompts/ml_coco.pth',
+            prompts='data/prompts/ml_coco_clip_r50.pth',
             in_features=256,
             out_features=65,
         ),
@@ -35,7 +35,7 @@ model = dict(
         object_head=dict(
             cls_predictor_cfg=dict(
                 type='Classifier',
-                prompts='data/prompts/ml_coco.pth',
+                prompts='data/prompts/ml_coco_clip_r50.pth',
             ),
         ),
         block_head=dict(
@@ -43,7 +43,7 @@ model = dict(
             topk=5,
             cls_predictor_cfg=dict(
                 type='Classifier',
-                prompts='data/prompts/ml_coco.pth',
+                prompts='data/prompts/ml_coco_clip_r50.pth',
             ),
             loss=dict(
                 type='AsymmetricLoss',
