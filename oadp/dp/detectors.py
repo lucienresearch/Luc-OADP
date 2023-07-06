@@ -18,6 +18,11 @@ from ..base import Globals
 from .roi_heads import OADPRoIHead
 from .utils import MultilabelTopKRecall
 
+# from clip import clip
+import torch.nn.functional as F
+from .attention import MultiHeadAttention
+device = "cuda" if torch.cuda.is_available() else "cpu"  # TODO 从配置中读取设备
+
 
 class GlobalHead(todd.Module):
 
@@ -74,6 +79,8 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
         self._global_head = GlobalHead(**global_head)
         distiller.setdefault('type', 'SelfDistiller')
         Student.__init__(self, distiller)
+        self.mulhead_attn = MultiHeadAttention(d_model=512, n_head=8)
+        self.mulhead_attn.to(device)
 
     @property
     def num_classes(self) -> int:
@@ -128,6 +135,8 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
         )
         self.roi_head.object_forward_train(feats, object_bboxes)
 
+        clip_objects = self.reweight_objects(clip_global, clip_objects)
+
         custom_tensors = dict(
             clip_global=clip_global.float(),
             clip_blocks=torch.cat(clip_blocks).float(),
@@ -148,3 +157,24 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
     def simple_test(self, *args, **kwargs):
         Globals.training = False
         return super().simple_test(*args, **kwargs)
+    
+    def reweight_objects(self, clip_global:torch.Tensor, clip_objects:list[torch.Tensor]):
+        batch_size = clip_global.shape[0]
+        new_objects = []
+        for i in range(batch_size):
+            clip_global_per_image = clip_global[i]
+            clip_objects_per_image = clip_objects[i]
+
+            # 将 shape 转换到适合 MultiHeadAttention 的结构
+            clip_objects_per_image = torch.unsqueeze(clip_objects_per_image, 0)
+            clip_global_per_image = torch.unsqueeze(torch.unsqueeze(clip_global_per_image, 0), 0)
+
+            q = clip_objects_per_image.float()  # torch.Size([1, C, 512]), C 个 proposals embeddings
+            k = clip_global_per_image.float()   # torch.Size([1, 1, 512]) , 1 个 global embeddings
+            v = clip_global_per_image.float()   # torch.Size([1, 1, 512]) 
+
+            out = self.mulhead_attn(q, k, v)    # torch.Size([1, C, 512])
+            out = torch.squeeze(out, 0)
+            new_objects.append(out)
+
+        return new_objects
