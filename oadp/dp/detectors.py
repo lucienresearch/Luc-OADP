@@ -20,7 +20,7 @@ from .utils import MultilabelTopKRecall
 
 # from clip import clip
 import torch.nn.functional as F
-from .attention import MultiHeadAttention
+from .attention import ObjectAttention
 device = "cuda" if torch.cuda.is_available() else "cpu"  # TODO 从配置中读取设备
 
 
@@ -79,8 +79,7 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
         self._global_head = GlobalHead(**global_head)
         distiller.setdefault('type', 'SelfDistiller')
         Student.__init__(self, distiller)
-        self.mulhead_attn = MultiHeadAttention(d_model=512, n_head=8)
-        self.mulhead_attn.to(device)
+        self.object_attn = ObjectAttention(d_model=512, n_head=8, device=device)
 
     @property
     def num_classes(self) -> int:
@@ -173,7 +172,7 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
             k = clip_global_per_image.float()   # torch.Size([1, 1, 512]) , 1 个 global embeddings
             v = clip_global_per_image.float()   # torch.Size([1, 1, 512]) 
 
-            out = self.mulhead_attn(q, k, v)    # torch.Size([1, C, 512])
+            out = self.object_attn(q, k, v)    # torch.Size([1, C, 512])
             out = torch.squeeze(out, 0)
             new_objects.append(out)
 

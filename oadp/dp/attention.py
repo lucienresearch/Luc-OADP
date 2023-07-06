@@ -43,6 +43,7 @@ class MultiHeadAttention(nn.Module):
         super(MultiHeadAttention, self).__init__()
         self.n_head = n_head
         self.attention = ScaleDotProductAttention()
+        # TODO 实验使用 VIT 权重进行初始化
         self.w_q = nn.Linear(d_model, d_model)
         self.w_k = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
@@ -92,6 +93,19 @@ class MultiHeadAttention(nn.Module):
 
         tensor = tensor.transpose(1, 2).contiguous().view(batch_size, length, d_model)
         return tensor
+
+class ObjectAttention(nn.Module):
+    def __init__(self, d_model, n_head, device) -> None:
+        super(ObjectAttention, self).__init__()
+        self.attn1 = MultiHeadAttention(d_model=d_model, n_head=n_head).to(device)
+        self.attn2 = MultiHeadAttention(d_model=d_model, n_head=n_head).to(device)
+
+    def forward(self, q, k, v):
+        out = self.attn1(q, k, v)
+        out = self.attn2(out, k, v)
+        out += q
+
+        return out
 
     
 if __name__ == '__main__':
