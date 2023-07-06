@@ -171,7 +171,6 @@ class OADP(TwoStageDetector, Student[SelfDistiller]):
             q = clip_objects_per_image.float()  # torch.Size([1, C, 512]), C 个 proposals embeddings
             k = clip_global_per_image.float()   # torch.Size([1, 1, 512]) , 1 个 global embeddings
             v = clip_global_per_image.float()   # torch.Size([1, 1, 512]) 
-
             out = self.object_attn(q, k, v)    # torch.Size([1, C, 512])
             out = torch.squeeze(out, 0)
             new_objects.append(out)
