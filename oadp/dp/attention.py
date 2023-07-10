@@ -58,7 +58,7 @@ class MultiHeadAttention(nn.Module):
 
         # 3. do scale dot product to compute similarity
         out, _ = self.attention(q, k, v, mask=mask)
-        out, _ = self.attention(out, k, v, mask=mask)
+        # out, _ = self.attention(out, k, v, mask=mask)
 
         # 4. concat and pass to linear layer
         out = self.concat(out)
